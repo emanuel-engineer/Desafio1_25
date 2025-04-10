@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>420</x>
+      <y>170</y>
+      <w>270</w>
+      <h>250</h>
+    </coordinates>
+    <panel_attributes>Procesar Imagenes
+--
+filas: int
+columnas: int 
+IMG_original: unsigned char*** 
+IMG_transformada: unsigned char***
+IMG_aleatoria: unsigned char***
+mascara: unsigned char***
+--
+cargar_IMG(PATH: string): void
+guardar_IMG(PATH: string): void
+aplicarXOR(): void
+rotarBITS(bits: int) void
+aplicar_mascara(offset: int): void
+revertir_TRANSFOR(): void
+verificar_mascara(PATH: string):bool</panel_attributes>
+    <additional_attributes/>
+  </element>
+</diagram>
