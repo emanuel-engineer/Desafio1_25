@@ -41,10 +41,20 @@ unsigned char* loadPixels(QString input, int &width, int &height);
 bool exportImage(unsigned char* pixelData, int width,int height, QString archivoSalida);
 unsigned int* loadSeedMasking(const char* nombreArchivo, int &seed, int &n_pixels);
 
+//CODIGO MIO
+void aplicarXOR(unsigned char* imagen1, unsigned char* imagen2, int size);
+
+void aplicarXOR(unsigned char* imagen1, unsigned char* imagen2, int size) {
+    for (int i = 0; i < size; ++i) {
+        imagen1[i] ^= imagen2[i];
+    }
+}
+//XXXXXXXX
+
 int main()
 {
     // Definición de rutas de archivo de entrada (imagen original) y salida (imagen modificada)
-    QString archivoEntrada = "I_O.bmp";
+    QString archivoEntrada = "/home/demuusz/UDEA/Desafio1/EjemploQT/I_O.bmp";
     QString archivoSalida = "I_D.bmp";
 
     // Variables para almacenar las dimensiones de la imagen
