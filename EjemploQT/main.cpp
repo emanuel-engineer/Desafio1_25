@@ -1,52 +1,139 @@
-#include <iostream>
 #include <fstream>
-#include <QImage>
+#include <iostream>
 #include <QCoreApplication>
+#include <QImage>
 
 using namespace std;
 
-// ====================== RUTAS DE ARCHIVOS ======================
-const char* RUTA_IO = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/P1.bmp";
-const char* RUTA_IM = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/I_M.bmp";
-const char* RUTA_M = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/M.bmp";
-const char* RUTA_M1 = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/M1.txt";
-const char* RUTA_M2 = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/M2.txt";
-const char* RUTA_SALIDA = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/build/salida.bmp";
+// Prototipos de funciones
+unsigned char* cargarImagen(QString archivo, int &ancho, int &alto);
+bool guardarImagen(unsigned char* pixeles, int ancho, int alto, QString archivo);
+unsigned char rotarDerecha3bits(unsigned char valor);
+unsigned char rotarIzquierda3bits(unsigned char valor);
+bool cargarDatosEnmascaramiento(const char* archivo, int &semilla, unsigned int* &datos, int &cantidad);
 
-// ====================== DECLARACIÓN DE FUNCIONES ======================
-unsigned char* cargar_imagen(const char* ruta, int& ancho, int& alto);
-bool guardar_imagen(unsigned char* datos, int ancho, int alto, const char* ruta);
-void aplicar_xor(unsigned char* imagen1, unsigned char* imagen2, int tamaño);
-void rotar_bits(unsigned char* imagen, int tamaño, int bits);
-bool verificar_enmascaramiento(unsigned char* io, unsigned char* m, const char* ruta_masking, int& offset);
-void procesar_imagen(unsigned char* io, unsigned char* im, unsigned char* m, int ancho, int alto);
+int main()
+{
+    // Archivos de entrada
+    QString archivoOriginal = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/I_O.bmp";
+    QString archivoAleatoria = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/I_M.bmp";
+    QString archivoMascara = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/resources/M1.txt";
 
-// ====================== MAIN ======================
-int main() {
-    int ancho, alto;
-    unsigned char* io = cargar_imagen(RUTA_IO, ancho, alto);
-    unsigned char* im = cargar_imagen(RUTA_IM, ancho, alto);
-    unsigned char* m = cargar_imagen(RUTA_M, ancho, alto);
+    // Archivos de salida para cada paso
+    QString archivoPaso1 = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/build/P1_XOR.bmp";
+    QString archivoPaso2 = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/build/P2_Rotacion.bmp";
+    QString archivoPaso3 = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/build/P3_XOR_Final.bmp";
+    QString archivoReconstruida = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/build/I_R_Reconstruida.bmp";
+    QString archivoPaso4 = "/home/demuusz/UDEA/Desafio1_25/EjemploQT/build/P4_Enmascaramiento.bmp";
 
-    if (!io || !im || !m) {
-        cerr << "Error al cargar imágenes" << endl;
-        return -1;
+    // Cargar dimensiones de las imágenes
+    int ancho = 0, alto = 0;
+    int ancho2 = 0, alto2 = 0;
+
+    cout << "Cargando imagenes..." << endl;
+    unsigned char *original = cargarImagen(archivoOriginal, ancho, alto);
+    unsigned char *aleatoria = cargarImagen(archivoAleatoria, ancho2, alto2);
+
+    if(!original || !aleatoria || ancho != ancho2 || alto != alto2) {
+        cout << "Error: Las imagenes no coinciden en dimensiones o no se pudieron cargar" << endl;
+        return 1;
     }
 
-    procesar_imagen(io, im, m, ancho, alto);
-    guardar_imagen(io, ancho, alto, RUTA_SALIDA);
+    int totalPixeles = ancho * alto * 3;
 
-    delete[] io;
-    delete[] im;
-    delete[] m;
-    cout << "Proceso completado. Imagen guardada en " << RUTA_SALIDA << endl;
+    // ========== PROCESO DE TRANSFORMACIÓN ==========
+    cout << "\nAplicando transformaciones..." << endl;
+
+    // Paso 1: XOR entre I_O e I_M
+    unsigned char* paso1 = new unsigned char[totalPixeles];
+    for(int i = 0; i < totalPixeles; i++) {
+        paso1[i] = original[i] ^ aleatoria[i];
+    }
+    guardarImagen(paso1, ancho, alto, archivoPaso1);
+    cout << "Paso 1 completado: XOR aplicado (guardado en " << archivoPaso1.toStdString() << ")" << endl;
+
+    // Paso 2: Rotación 3 bits a la derecha
+    unsigned char* paso2 = new unsigned char[totalPixeles];
+    for(int i = 0; i < totalPixeles; i++) {
+        paso2[i] = rotarDerecha3bits(paso1[i]);
+    }
+    guardarImagen(paso2, ancho, alto, archivoPaso2);
+    cout << "Paso 2 completado: Rotacion 3 bits derecha (guardado en " << archivoPaso2.toStdString() << ")" << endl;
+
+    // Paso 3: XOR entre resultado y I_M
+    unsigned char* paso3 = new unsigned char[totalPixeles];
+    for(int i = 0; i < totalPixeles; i++) {
+        paso3[i] = paso2[i] ^ aleatoria[i];
+    }
+    guardarImagen(paso3, ancho, alto, archivoPaso3);
+    cout << "Paso 3 completado: XOR final (guardado en " << archivoPaso3.toStdString() << ")" << endl;
+
+    // ========== PROCESO DE RECONSTRUCCIÓN ==========
+    cout << "\nIniciando reconstruccion usando M1.txt..." << endl;
+
+    // Cargar datos de enmascaramiento
+    int semilla = 0;
+    unsigned int* datosMascara = nullptr;
+    int cantidadPixelesMascara = 0;
+
+    if(!cargarDatosEnmascaramiento(archivoMascara.toStdString().c_str(), semilla, datosMascara, cantidadPixelesMascara)) {
+        cout << "Error al cargar el archivo de enmascaramiento" << endl;
+        return 1;
+    }
+    cout << "Datos de enmascaramiento cargados. Semilla: " << semilla
+         << ", Pixeles: " << cantidadPixelesMascara << endl;
+
+    // Paso 1 Reconstrucción: XOR inverso (Paso 3 original)
+    unsigned char* r_paso1 = new unsigned char[totalPixeles];
+    for(int i = 0; i < totalPixeles; i++) {
+        r_paso1[i] = paso3[i] ^ aleatoria[i];
+    }
+
+    // Paso 2 Reconstrucción: Rotación inversa (izquierda)
+    unsigned char* r_paso2 = new unsigned char[totalPixeles];
+    for(int i = 0; i < totalPixeles; i++) {
+        r_paso2[i] = rotarIzquierda3bits(r_paso1[i]);
+    }
+    guardarImagen(r_paso2, ancho, alto, archivoPaso4);
+    cout << "Pre-reconstruccion completada (guardado en " << archivoPaso4.toStdString() << ")" << endl;
+
+    // Paso 3 Reconstrucción: Aplicar enmascaramiento inverso
+    for(int i = 0; i < cantidadPixelesMascara * 3; i += 3) {
+        int posicion = (semilla + i) % totalPixeles;
+        r_paso2[posicion] = datosMascara[i] - r_paso2[posicion];
+        r_paso2[posicion+1] = datosMascara[i+1] - r_paso2[posicion+1];
+        r_paso2[posicion+2] = datosMascara[i+2] - r_paso2[posicion+2];
+    }
+
+    // Paso 4 Reconstrucción: XOR final con I_M
+    unsigned char* reconstruida = new unsigned char[totalPixeles];
+    for(int i = 0; i < totalPixeles; i++) {
+        reconstruida[i] = r_paso2[i] ^ aleatoria[i];
+    }
+    guardarImagen(reconstruida, ancho, alto, archivoReconstruida);
+    cout << "Reconstruccion final completada (guardado en " << archivoReconstruida.toStdString() << ")" << endl;
+
+    // Liberar memoria
+    delete[] original;
+    delete[] aleatoria;
+    delete[] paso1;
+    delete[] paso2;
+    delete[] paso3;
+    delete[] r_paso1;
+    delete[] r_paso2;
+    delete[] reconstruida;
+    delete[] datosMascara;
+
+    cout << "\nProceso completado exitosamente!" << endl;
     return 0;
 }
-// ====================== IMPLEMENTACIÓN DE FUNCIONES ======================
-unsigned char* cargar_imagen(const char* ruta, int& ancho, int& alto) {
-    QImage imagen(ruta);
-    if (imagen.isNull()) {
-        cerr << "Error al cargar: " << ruta << endl;
+
+// Implementación de funciones...
+
+unsigned char* cargarImagen(QString archivo, int &ancho, int &alto) {
+    QImage imagen(archivo);
+    if(imagen.isNull()) {
+        cout << "Error al cargar: " << archivo.toStdString() << endl;
         return nullptr;
     }
 
@@ -54,84 +141,68 @@ unsigned char* cargar_imagen(const char* ruta, int& ancho, int& alto) {
     ancho = imagen.width();
     alto = imagen.height();
 
-    unsigned char* datos = new unsigned char[ancho * alto * 3];
-    for (int y = 0; y < alto; ++y) {
-        memcpy(datos + y * ancho * 3, imagen.scanLine(y), ancho * 3);
+    int tamano = ancho * alto * 3;
+    unsigned char* pixeles = new unsigned char[tamano];
+
+    for(int y = 0; y < alto; y++) {
+        memcpy(pixeles + y * ancho * 3, imagen.scanLine(y), ancho * 3);
     }
 
-    return datos;
+    return pixeles;
 }
 
-bool guardar_imagen(unsigned char* datos, int ancho, int alto, const char* ruta) {
+bool guardarImagen(unsigned char* pixeles, int ancho, int alto, QString archivo) {
     QImage imagen(ancho, alto, QImage::Format_RGB888);
-    for (int y = 0; y < alto; ++y) {
-        memcpy(imagen.scanLine(y), datos + y * ancho * 3, ancho * 3);
-    }
-    return imagen.save(ruta, "BMP");
-}
 
-void aplicar_xor(unsigned char* imagen1, unsigned char* imagen2, int tamaño) {
-    for (int i = 0; i < tamaño; ++i) {
-        imagen1[i] ^= imagen2[i];
+    for(int y = 0; y < alto; y++) {
+        memcpy(imagen.scanLine(y), pixeles + y * ancho * 3, ancho * 3);
     }
-}
 
-void rotar_bits(unsigned char* imagen, int tamaño, int bits) {
-    for (int i = 0; i < tamaño; ++i) {
-        imagen[i] = (imagen[i] >> bits) | (imagen[i] << (8 - bits));
-    }
-}
-
-bool verificar_enmascaramiento(unsigned char* io, unsigned char* m, const char* ruta_masking, int& offset) {
-    ifstream archivo(ruta_masking);
-    if (!archivo.is_open()) {
-        cerr << "Error al abrir " << ruta_masking << endl;
+    if(!imagen.save(archivo, "BMP")) {
+        cout << "Error al guardar: " << archivo.toStdString() << endl;
         return false;
     }
-
-    archivo >> offset;
-
-    QImage mascara(RUTA_M);
-    int m_width = mascara.width();
-    int m_height = mascara.height();
-    int m_size = m_width * m_height * 3;
-
-    int io_size = ancho * alto * 3; // Asume que 'ancho' y 'alto' son globales o calculados
-
-    int r, g, b;
-    int k = 0;
-    while (archivo >> r >> g >> b && k < m_size) {
-        int pos = (offset + k) % io_size;
-        if ((io[pos] + m[k]) != r ||
-            (io[pos+1] + m[k+1]) != g ||
-            (io[pos+2] + m[k+2]) != b) {
-            archivo.close();
-            return false;
-        }
-        k += 3;
-    }
-    archivo.close();
     return true;
 }
 
-void liberar_datos(unsigned int** datos, int num_archivos) {
-    for (int i = 0; i < num_archivos; ++i) {
-        if (datos[i]) {
-            delete[] datos[i];
-        }
-    }
-    delete[] datos;
+unsigned char rotarDerecha3bits(unsigned char valor) {
+    return (valor >> 3) | (valor << 5);
 }
 
-void procesar_imagen(unsigned char* io, unsigned char* im, unsigned char* m, int ancho, int alto) {
-    // 1. Aplicar XOR inverso (para revertir la transformación)
-    aplicar_xor(io, im, ancho * alto * 3);
+unsigned char rotarIzquierda3bits(unsigned char valor) {
+    return (valor << 3) | (valor >> 5);
+}
 
-    // 2. Rotar bits (ejemplo: 3 bits a la izquierda para revertir)
-    rotar_bits(io, ancho * alto * 3, 3);
+bool cargarDatosEnmascaramiento(const char* archivo, int &semilla, unsigned int* &datos, int &cantidad) {
+    ifstream f(archivo);
+    if(!f.is_open()) {
+        cout << "Error al abrir: " << archivo << endl;
+        return false;
+    }
 
-    // 3. Aplicar XOR inverso nuevamente si es necesario
-    aplicar_xor(io, im, ancho * alto * 3);
+    // Leer semilla
+    f >> semilla;
 
-    // Nota: El orden y parámetros exactos dependen de cómo se transformó originalmente la imagen
+    // Contar cantidad de tripletas RGB
+    cantidad = 0;
+    int r, g, b;
+    while(f >> r >> g >> b) {
+        cantidad++;
+    }
+
+    // Volver a leer para cargar datos
+    f.clear();
+    f.seekg(0);
+    f >> semilla;
+
+    datos = new unsigned int[cantidad * 3];
+    for(int i = 0; i < cantidad * 3; i += 3) {
+        f >> r >> g >> b;
+        datos[i] = r;
+        datos[i+1] = g;
+        datos[i+2] = b;
+    }
+
+    f.close();
+    return true;
 }
