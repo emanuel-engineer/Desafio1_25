@@ -29,10 +29,13 @@ int main()
     // Cargar dimensiones de las imágenes
     int ancho = 0, alto = 0;
     int ancho2 = 0, alto2 = 0;
+    int ancho3 = 0, alto3 = 0;
 
     cout << "Cargando imagenes..." << endl;
     unsigned char *original = cargarImagen(archivoOriginal, ancho, alto);
     unsigned char *aleatoria = cargarImagen(archivoAleatoria, ancho2, alto2);
+    unsigned char *reconstruido = cargarImagen(archivoReconstruida, ancho3 , alto3);
+
 
     if(!original || !aleatoria || ancho != ancho2 || alto != alto2) {
         cout << "Error: Las imagenes no coinciden en dimensiones o no se pudieron cargar" << endl;
@@ -113,6 +116,15 @@ int main()
     guardarImagen(reconstruida, ancho, alto, archivoReconstruida);
     cout << "Reconstruccion final completada (guardado en " << archivoReconstruida.toStdString() << ")" << endl;
 
+
+    if (*original == *reconstruido){
+
+        cout << "\n Ambos archivos son iguales"<<endl;
+    }else {
+        cout << "\n El archivo reconstruido es diferente"<<endl;
+    }
+
+
     // Liberar memoria
     delete[] original;
     delete[] aleatoria;
@@ -123,6 +135,7 @@ int main()
     delete[] r_paso2;
     delete[] reconstruida;
     delete[] datosMascara;
+    delete[] reconstruido ;
 
     cout << "\nProceso completado exitosamente!" << endl;
     return 0;
